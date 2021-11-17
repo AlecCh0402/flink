@@ -101,11 +101,11 @@ public class StoreKey {
     /** Compare user key and sequence number. */
     public static int compare(
             Comparator<RowData> userKeyComparator,
-            RowData useKey1,
+            RowData userKey1,
             long sequenceNumber1,
-            RowData useKey2,
+            RowData userKey2,
             long sequenceNumber2) {
-        int result = userKeyComparator.compare(useKey1, useKey2);
+        int result = userKeyComparator.compare(userKey1, userKey2);
         if (result != 0) {
             return result;
         }
