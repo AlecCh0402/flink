@@ -19,6 +19,7 @@
 package org.apache.flink.table.storage.filestore;
 
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 
 /**
  * A key value, including user key, sequence number, value kind and value. This object can be
@@ -52,6 +53,15 @@ public class KeyValue {
     public KeyValue setValueKind(ValueKind valueKind) {
         this.valueKind = valueKind;
         return this;
+    }
+
+    public KeyValue copy(RowDataSerializer userKeySerializer, RowDataSerializer valueSerializer) {
+        return new KeyValue()
+                .replace(
+                        userKeySerializer.copy(key),
+                        sequenceNumber,
+                        valueKind,
+                        valueSerializer.copy(value));
     }
 
     public RowData key() {

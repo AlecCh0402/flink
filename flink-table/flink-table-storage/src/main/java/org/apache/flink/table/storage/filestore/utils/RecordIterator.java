@@ -32,6 +32,12 @@ public interface RecordIterator<T> {
     boolean advanceNext() throws IOException;
 
     /**
+     * Return true if support {@link #previous()}. This means that the iterator must maintain two
+     * object instances at the same time.
+     */
+    boolean supportPrevious();
+
+    /**
      * Retrieve previous element from this iterator. This method is idempotent.
      *
      * <p>It is illegal to call this method when there is no previous element.
