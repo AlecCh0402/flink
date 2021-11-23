@@ -130,7 +130,9 @@ public class SstFileMeta {
                 rowCount,
                 minKey,
                 maxKey,
-                stats,
+                // by default, hash code of arrays are computed by reference, not by content.
+                // so we must use Arrays.hashCode to hash by content.
+                Arrays.hashCode(stats),
                 minSequenceNumber,
                 maxSequenceNumber,
                 level);
