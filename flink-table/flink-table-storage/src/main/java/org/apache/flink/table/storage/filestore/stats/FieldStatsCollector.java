@@ -22,8 +22,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import java.util.stream.IntStream;
-
 /** Collector to extract statistics of each fields from a series of records. */
 public class FieldStatsCollector {
 
@@ -38,10 +36,7 @@ public class FieldStatsCollector {
         this.minValues = new Object[numFields];
         this.maxValues = new Object[numFields];
         this.nullCounts = new long[numFields];
-        this.fieldGetters =
-                IntStream.range(0, numFields)
-                        .mapToObj(i -> RowData.createFieldGetter(rowType.getTypeAt(i), i))
-                        .toArray(RowData.FieldGetter[]::new);
+        this.fieldGetters = FieldStatsArraySerializer.createFieldGetters(rowType);
     }
 
     /**

@@ -20,7 +20,7 @@ package org.apache.flink.table.storage.filestore.lsm.sst;
 
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.storage.filestore.stats.FieldStats;
-import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.storage.filestore.stats.FieldStatsArraySerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -160,18 +160,10 @@ public class SstFileMeta {
         fields.add(new RowType.RowField("_ROW_COUNT", new BigIntType(false)));
         fields.add(new RowType.RowField("_MIN_KEY", keyType));
         fields.add(new RowType.RowField("_MAX_KEY", keyType));
-        fields.add(new RowType.RowField("_STATS", statsSchema(rowType)));
+        fields.add(new RowType.RowField("_STATS", FieldStatsArraySerializer.schema(rowType)));
         fields.add(new RowType.RowField("_MIN_SEQUENCE_NUMBER", new BigIntType(false)));
         fields.add(new RowType.RowField("_MAX_SEQUENCE_NUMBER", new BigIntType(false)));
         fields.add(new RowType.RowField("_LEVEL", new IntType(false)));
-        return new RowType(fields);
-    }
-
-    private static RowType statsSchema(RowType rowType) {
-        List<RowType.RowField> fields = new ArrayList<>();
-        fields.add(new RowType.RowField("_MIN_VALUES", rowType));
-        fields.add(new RowType.RowField("_MAX_VALUES", rowType));
-        fields.add(new RowType.RowField("_NULL_COUNTS", new ArrayType(new BigIntType(false))));
         return new RowType(fields);
     }
 }

@@ -96,7 +96,7 @@ public class IntervalPartitionTest {
     @Test
     public void randomTest() {
         Random r = new Random();
-        for (int tries = 1; tries <= 1000; tries++) {
+        for (int tries = 1; tries <= 100; tries++) {
             List<int[]> intervals = new ArrayList<>();
             // construct some sorted runs
             int numSortedRuns = r.nextInt(10) + 1;
