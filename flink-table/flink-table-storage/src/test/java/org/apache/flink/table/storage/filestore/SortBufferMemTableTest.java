@@ -112,11 +112,7 @@ public class SortBufferMemTableTest {
         List<KeyValue> results = new ArrayList<>();
         Assert.assertNotNull(iterator);
         while (iterator.advanceNext()) {
-            KeyValue current = iterator.current();
-            if (results.size() > 0) {
-                Assert.assertTrue(isEquals(results.get(results.size() - 1), iterator.previous()));
-            }
-            results.add(current.copy(INT_SERIALIZER, INT_SERIALIZER));
+            results.add(iterator.current().copy(INT_SERIALIZER, INT_SERIALIZER));
         }
         Assert.assertNull(reader.readBatch());
 

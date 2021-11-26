@@ -36,7 +36,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * RecordReader} is sorted by key and sequence number.
  *
  * <p>This reader needs to hold at least two record objects at the same time to perform a combined
- * process. So the reader only accepts wrapped reader with {@link RecordIterator#supportPrevious()}.
+ * process. So the reader only accepts wrapped reader with {@link RecordIterator#singleInstance()}
+ * returns false.
  */
 public abstract class CombineRecordReader implements RecordReader<KeyValue> {
 
@@ -89,7 +90,7 @@ public abstract class CombineRecordReader implements RecordReader<KeyValue> {
         private KeyValue current;
 
         private CombineRecordIterator(RecordIterator<KeyValue> iterator) {
-            checkArgument(iterator.supportPrevious());
+            checkArgument(!iterator.singleInstance());
             this.iterator = iterator;
         }
 
@@ -123,13 +124,8 @@ public abstract class CombineRecordReader implements RecordReader<KeyValue> {
         }
 
         @Override
-        public boolean supportPrevious() {
-            return false;
-        }
-
-        @Override
-        public KeyValue previous() {
-            throw new UnsupportedOperationException();
+        public boolean singleInstance() {
+            return true;
         }
 
         @Override
@@ -165,13 +161,8 @@ public abstract class CombineRecordReader implements RecordReader<KeyValue> {
         }
 
         @Override
-        public boolean supportPrevious() {
-            return false;
-        }
-
-        @Override
-        public T previous() {
-            throw new UnsupportedOperationException();
+        public boolean singleInstance() {
+            return true;
         }
 
         @Override

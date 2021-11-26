@@ -136,13 +136,8 @@ public class SortBufferMemTable implements MemTable {
                     }
 
                     @Override
-                    public boolean supportPrevious() {
-                        return true;
-                    }
-
-                    @Override
-                    public KeyValue previous() {
-                        return previous.record();
+                    public boolean singleInstance() {
+                        return false;
                     }
 
                     @Override

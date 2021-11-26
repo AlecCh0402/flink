@@ -121,13 +121,8 @@ public class TestRecordReader implements RecordReader<KeyValue> {
         }
 
         @Override
-        public boolean supportPrevious() {
-            return true;
-        }
-
-        @Override
-        public KeyValue previous() {
-            return previous;
+        public boolean singleInstance() {
+            return false;
         }
 
         @Override
