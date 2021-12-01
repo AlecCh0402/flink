@@ -24,6 +24,7 @@ import org.apache.flink.table.storage.filestore.TestKeyValueGenerator;
 import org.apache.flink.table.storage.filestore.ValueKind;
 import org.apache.flink.table.storage.filestore.lsm.sst.SstTestDataGenerator;
 import org.apache.flink.table.storage.filestore.stats.FieldStatsCollector;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -78,6 +79,9 @@ public class ManifestTestDataGenerator {
     }
 
     public ManifestFileMeta createManifestFileMeta(List<ManifestEntry> entries) {
+        Preconditions.checkArgument(
+                !entries.isEmpty(), "Manifest entries are empty. Invalid test data.");
+
         FieldStatsCollector collector =
                 new FieldStatsCollector(TestKeyValueGenerator.PARTITION_TYPE);
 

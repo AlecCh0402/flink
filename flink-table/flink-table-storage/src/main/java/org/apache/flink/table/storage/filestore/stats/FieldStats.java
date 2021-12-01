@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.storage.filestore.stats;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 
 /** Statistics for each field. */
 public class FieldStats {
 
-    private final Object minValue;
-    private final Object maxValue;
+    @Nullable private final Object minValue;
+    @Nullable private final Object maxValue;
     private final long nullCount;
 
     public FieldStats(Object minValue, Object maxValue, long nullCount) {
@@ -63,6 +65,6 @@ public class FieldStats {
 
     @Override
     public String toString() {
-        return String.format("{%s, %s, %d}", minValue.toString(), maxValue.toString(), nullCount);
+        return String.format("{%s, %s, %d}", minValue, maxValue, nullCount);
     }
 }

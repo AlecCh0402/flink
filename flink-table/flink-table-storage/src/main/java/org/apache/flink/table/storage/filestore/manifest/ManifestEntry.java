@@ -98,4 +98,9 @@ public class ManifestEntry {
     public int hashCode() {
         return Objects.hash(kind, partition, bucket, totalBuckets, file);
     }
+
+    @Override
+    public String toString() {
+        return String.format("{%s, %s, %d, %d, %s}", kind, partition, bucket, totalBuckets, file);
+    }
 }

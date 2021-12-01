@@ -107,4 +107,15 @@ public class ManifestFileMeta {
                 // so we must use Arrays.hashCode to hash by content.
                 Arrays.hashCode(partitionStats));
     }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "{%s, %d, %d, %d, %s}",
+                fileName,
+                fileSize,
+                numAddedFiles,
+                numDeletedFiles,
+                Arrays.toString(partitionStats));
+    }
 }
