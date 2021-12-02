@@ -43,17 +43,17 @@ public enum CombinePolicy implements Serializable {
      * number.
      */
     public RecordReader<KeyValue> combine(
-            RecordReader<KeyValue> iterator,
+            RecordReader<KeyValue> reader,
             Comparator<RowData> comparator,
             RowDataSerializer userKeySerializer,
             RowDataSerializer valueSerializer) {
         switch (this) {
             case VALUE_COUNT:
                 return new ValueCountCombineReader(
-                        iterator, comparator, userKeySerializer, valueSerializer);
+                        reader, comparator, userKeySerializer, valueSerializer);
             case DEDUPLICATE:
                 return new DeduplicateCombineReader(
-                        iterator, comparator, userKeySerializer, valueSerializer);
+                        reader, comparator, userKeySerializer, valueSerializer);
             default:
                 throw new UnsupportedOperationException("Unsupported strategy: " + this);
         }

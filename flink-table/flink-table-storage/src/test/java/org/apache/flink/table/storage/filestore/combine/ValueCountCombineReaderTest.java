@@ -18,27 +18,19 @@
 
 package org.apache.flink.table.storage.filestore.combine;
 
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.table.storage.filestore.KeyValue;
-import org.apache.flink.table.storage.filestore.ValueKind;
-import org.apache.flink.table.storage.filestore.utils.RecordIterator;
-import org.apache.flink.table.storage.filestore.utils.RecordReader;
 import org.apache.flink.table.storage.filestore.utils.TestRecordReader;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
-import static org.apache.flink.table.storage.filestore.utils.TestRecordReader.USER_KEY_COMPARATOR;
-import static org.apache.flink.table.storage.filestore.utils.TestRecordReader.USER_KEY_SERIALIZER;
-import static org.apache.flink.table.storage.filestore.utils.TestRecordReader.VALUE_SERIALIZER;
+import static org.apache.flink.table.storage.filestore.ValueKind.ADD;
+import static org.apache.flink.table.storage.filestore.ValueKind.DELETE;
+import static org.apache.flink.table.storage.filestore.utils.TestRecordReader.testCombine;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 /** Test for {@link ValueCountCombineReader}. */
@@ -50,95 +42,83 @@ public class ValueCountCombineReaderTest {
 
     @Test
     public void testEmpty() throws IOException {
-        doTest(Collections.emptyList(), Collections.emptyList());
+        testCombine(
+                CombinePolicy.VALUE_COUNT,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                BATCH_SIZE);
     }
 
     @Test
     public void testInvalidValueKind() throws IOException {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(equalTo("Value kind should be ADD."));
-        doTest(
+        testCombine(
+                CombinePolicy.VALUE_COUNT,
                 Arrays.asList(
-                        new Tuple3<>(1, ValueKind.ADD, 1L), new Tuple3<>(1, ValueKind.DELETE, 1L)),
-                Collections.emptyList());
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, DELETE, 1L)),
+                Collections.emptyList(),
+                BATCH_SIZE);
     }
 
     @Test
     public void testInvalidValueCount() throws IOException {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(equalTo("Value count should not be null."));
-        doTest(
+        testCombine(
+                CombinePolicy.VALUE_COUNT,
                 Arrays.asList(
-                        new Tuple3<>(1, ValueKind.ADD, null),
-                        new Tuple3<>(1, ValueKind.DELETE, 1L)),
-                Collections.emptyList());
+                        new TestRecordReader.TestKeyValue(1, ADD, null),
+                        new TestRecordReader.TestKeyValue(1, DELETE, 1L)),
+                Collections.emptyList(),
+                BATCH_SIZE);
     }
 
     @Test
     public void testCount() throws IOException {
-        doTest(
+        testCombine(
+                CombinePolicy.VALUE_COUNT,
                 Arrays.asList(
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L)),
-                Collections.singletonList(new Tuple3<>(1, ValueKind.ADD, 3L)));
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L)),
+                Collections.singletonList(new TestRecordReader.TestKeyValue(1, ADD, 3L)),
+                BATCH_SIZE);
     }
 
     @Test
     public void testCountCross() throws IOException {
-        doTest(
+        testCombine(
+                CombinePolicy.VALUE_COUNT,
                 Arrays.asList(
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 1L)),
-                Collections.singletonList(new Tuple3<>(1, ValueKind.ADD, 7L)));
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L)),
+                Collections.singletonList(new TestRecordReader.TestKeyValue(1, ADD, 7L)),
+                BATCH_SIZE);
     }
 
     @Test
     public void testMultipleKeys() throws IOException {
-        doTest(
+        testCombine(
+                CombinePolicy.VALUE_COUNT,
                 Arrays.asList(
-                        new Tuple3<>(1, ValueKind.ADD, 1L),
-                        new Tuple3<>(1, ValueKind.ADD, 2L),
-                        new Tuple3<>(2, ValueKind.ADD, 1L),
-                        new Tuple3<>(2, ValueKind.ADD, 1L),
-                        new Tuple3<>(2, ValueKind.ADD, 1L),
-                        new Tuple3<>(3, ValueKind.ADD, 1L),
-                        new Tuple3<>(3, ValueKind.ADD, 1L)),
+                        new TestRecordReader.TestKeyValue(1, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(1, ADD, 2L),
+                        new TestRecordReader.TestKeyValue(2, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(2, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(2, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(3, ADD, 1L),
+                        new TestRecordReader.TestKeyValue(3, ADD, 1L)),
                 Arrays.asList(
-                        new Tuple3<>(1, ValueKind.ADD, 3L),
-                        new Tuple3<>(2, ValueKind.ADD, 3L),
-                        new Tuple3<>(3, ValueKind.ADD, 2L)));
-    }
-
-    private void doTest(
-            List<Tuple3<Integer, ValueKind, Long>> inputs,
-            List<Tuple3<Integer, ValueKind, Long>> expected)
-            throws IOException {
-        TestRecordReader reader = new TestRecordReader(inputs, BATCH_SIZE);
-        RecordReader<KeyValue> combineReader =
-                CombinePolicy.VALUE_COUNT.combine(
-                        reader, USER_KEY_COMPARATOR, USER_KEY_SERIALIZER, VALUE_SERIALIZER);
-
-        List<Tuple3<Integer, ValueKind, Long>> values = new ArrayList<>();
-        RecordIterator<KeyValue> batch;
-        while ((batch = combineReader.readBatch()) != null) {
-            while (batch.advanceNext()) {
-                values.add(
-                        new Tuple3<>(
-                                batch.current().key().getInt(0),
-                                batch.current().valueKind(),
-                                batch.current().value().getLong(0)));
-            }
-        }
-
-        combineReader.close();
-        Assert.assertTrue(reader.isClosed());
-
-        Assert.assertEquals(expected, values);
+                        new TestRecordReader.TestKeyValue(1, ADD, 3L),
+                        new TestRecordReader.TestKeyValue(2, ADD, 3L),
+                        new TestRecordReader.TestKeyValue(3, ADD, 2L)),
+                BATCH_SIZE);
     }
 }

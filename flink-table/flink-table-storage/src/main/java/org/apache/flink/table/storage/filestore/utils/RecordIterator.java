@@ -45,7 +45,7 @@ public interface RecordIterator<T> {
 
     /**
      * Releases the batch that this iterator iterated over. This is not supposed to close the reader
-     * and its resources, but is simply a signal that this iterator is no used any more. This method
+     * and its resources, but is simply a signal that this iterator is not used anymore. This method
      * can be used as a hook to recycle/reuse heavyweight object structures.
      */
     void releaseBatch();
