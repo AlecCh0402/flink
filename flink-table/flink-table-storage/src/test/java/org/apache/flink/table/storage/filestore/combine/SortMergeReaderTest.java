@@ -143,12 +143,13 @@ public class SortMergeReaderTest {
                             .boxed()
                             .collect(Collectors.toList());
 
+            int j = i - 1;
+            while (j >= 0 && inputs.get(j).isEmpty()) {
+                j--;
+            }
             long min =
-                    i > 0
-                            ? inputs.get(i - 1)
-                                            .get(inputs.get(i - 1).size() - 1)
-                                            .getSequenceNumber()
-                                    + 1
+                    j >= 0
+                            ? inputs.get(j).get(inputs.get(j).size() - 1).getSequenceNumber() + 1
                             : 0;
             long max = min + keys.size();
             List<Long> sequenceNumbers =
@@ -156,9 +157,9 @@ public class SortMergeReaderTest {
             inputs.add(
                     IntStream.range(0, keys.size())
                             .mapToObj(
-                                    j ->
+                                    k ->
                                             new TestRecordReader.TestKeyValue(
-                                                    keys.get(j), sequenceNumbers.get(j)))
+                                                    keys.get(k), sequenceNumbers.get(k)))
                             .collect(Collectors.toList()));
         }
         int batchSize = new Random().nextInt(50) + 1;
