@@ -1,0 +1,44 @@
+{
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "StreamPhysicalTableSourceScan",
+    "digest" : "TableSourceScan(table=[[default_catalog, default_database, order, project=[category_id, amount], metadata=[]]], fields=[category_id, amount])",
+    "changelog_mode" : "I"
+  }, {
+    "id" : 2,
+    "type" : "StreamPhysicalLookupJoin",
+    "digest" : "LookupJoin(table=[default_catalog.default_database.category], joinType=[LeftOuterJoin], lookup=[category_id=category_id], select=[category_id, amount, category_id0, category_name])",
+    "changelog_mode" : "I",
+    "predecessors" : [ {
+      "id" : 1,
+      "distribution" : "ANY",
+      "changelog_mode" : "I"
+    } ]
+  }, {
+    "id" : 3,
+    "type" : "StreamPhysicalCalc",
+    "digest" : "Calc(select=[category_name, amount])",
+    "changelog_mode" : "I",
+    "predecessors" : [ {
+      "id" : 2,
+      "distribution" : "ANY",
+      "changelog_mode" : "I"
+    } ]
+  }, {
+    "id" : 5,
+    "type" : "StreamPhysicalGroupAggregate",
+    "digest" : "GroupAggregate(groupBy=[category_name], select=[category_name, SUM(amount) AS revenue], upsertKeys=[[category_name]])",
+    "changelog_mode" : "I,UA",
+    "predecessors" : [ {
+      "id" : 3,
+      "distribution" : "HASH_DISTRIBUTED",
+      "changelog_mode" : "I"
+    } ]
+  } ],
+  "advice" : [ {
+    "kind" : "WARNING",
+    "scope" : "LOCAL",
+    "content" : "You might want to pay attention to this node because state expiration configuration 'table.exec.state.ttl' is enabled.",
+    "id" : [ 2, 5 ]
+  } ]
+}

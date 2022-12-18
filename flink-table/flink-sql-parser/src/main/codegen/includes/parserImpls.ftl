@@ -2097,6 +2097,8 @@ void ParseExplainDetail(Set<String> explainDetails):
         <CHANGELOG_MODE> 
         | 
         <JSON_EXECUTION_PLAN>
+        |
+        <ANALYZED_PHYSICAL_PLAN>
     ) 
     {
         if (explainDetails.contains(token.image.toUpperCase())) {

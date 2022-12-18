@@ -1,0 +1,33 @@
+{
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "StreamPhysicalTableSourceScan",
+    "digest" : "TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3], upsertKeys=[[a]])",
+    "changelog_mode" : "I,UB,UA,D"
+  }, {
+    "id" : 2,
+    "type" : "StreamPhysicalCalc",
+    "digest" : "Calc(select=[a, metadata_3, c], upsertKeys=[[a]])",
+    "changelog_mode" : "I,UB,UA,D",
+    "predecessors" : [ {
+      "id" : 1,
+      "distribution" : "ANY",
+      "changelog_mode" : "I,UB,UA,D"
+    } ]
+  }, {
+    "id" : 3,
+    "type" : "StreamPhysicalSink",
+    "digest" : "Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, metadata_3, c])",
+    "changelog_mode" : "NONE",
+    "predecessors" : [ {
+      "id" : 2,
+      "distribution" : "ANY",
+      "changelog_mode" : "I,UB,UA,D"
+    } ]
+  } ],
+  "advice" : [ {
+    "kind" : "WARNING",
+    "scope" : "GLOBAL",
+    "content" : "The metadata column(s): 'metadata_3' in cdc source may cause wrong result or error on downstream operators, please consider removing these columns or use a non-cdc source that only has insert messages.\nsource node:\nTableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3], changelogMode=[I,UB,UA,D], upsertKeys=[[a]])\n"
+  } ]
+}

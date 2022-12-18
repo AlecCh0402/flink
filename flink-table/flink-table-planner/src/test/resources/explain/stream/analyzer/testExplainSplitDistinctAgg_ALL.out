@@ -1,0 +1,44 @@
+{
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "StreamPhysicalTableSourceScan",
+    "digest" : "TableSourceScan(table=[[default_catalog, default_database, order, project=[buyer_id, category_id, amount], metadata=[]]], fields=[buyer_id, category_id, amount]), rowType=[RecordType(BIGINT buyer_id, BIGINT category_id, DOUBLE amount)]",
+    "changelog_mode" : "I"
+  }, {
+    "id" : 2,
+    "type" : "StreamPhysicalLookupJoin",
+    "digest" : "LookupJoin(table=[default_catalog.default_database.category], joinType=[LeftOuterJoin], lookup=[category_id=category_id], select=[buyer_id, category_id, amount, category_id0, category_name]), rowType=[RecordType(BIGINT buyer_id, BIGINT category_id, DOUBLE amount, BIGINT category_id0, VARCHAR(2147483647) category_name)]",
+    "changelog_mode" : "I",
+    "predecessors" : [ {
+      "id" : 1,
+      "distribution" : "ANY",
+      "changelog_mode" : "I"
+    } ]
+  }, {
+    "id" : 3,
+    "type" : "StreamPhysicalCalc",
+    "digest" : "Calc(select=[category_name, amount, buyer_id]), rowType=[RecordType(VARCHAR(2147483647) category_name, DOUBLE amount, BIGINT buyer_id)]",
+    "changelog_mode" : "I",
+    "predecessors" : [ {
+      "id" : 2,
+      "distribution" : "ANY",
+      "changelog_mode" : "I"
+    } ]
+  }, {
+    "id" : 5,
+    "type" : "StreamPhysicalGroupAggregate",
+    "digest" : "GroupAggregate(groupBy=[category_name], select=[category_name, SUM(amount) AS revenue, COUNT(DISTINCT buyer_id) AS buyer_cnt], upsertKeys=[[category_name]]), rowType=[RecordType(VARCHAR(2147483647) category_name, DOUBLE revenue, BIGINT buyer_cnt)]",
+    "changelog_mode" : "I,UA",
+    "predecessors" : [ {
+      "id" : 3,
+      "distribution" : "HASH_DISTRIBUTED",
+      "changelog_mode" : "I"
+    } ]
+  } ],
+  "advice" : [ {
+    "kind" : "ADVICE",
+    "scope" : "LOCAL",
+    "content" : "You might want to set 'table.optimizer.distinct-agg.split.enabled' = 'true' to enable distinct aggregate optimization.",
+    "id" : [ 5 ]
+  } ]
+}

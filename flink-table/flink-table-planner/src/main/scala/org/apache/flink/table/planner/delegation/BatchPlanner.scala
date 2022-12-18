@@ -101,6 +101,10 @@ class BatchPlanner(
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
+    if (extraDetails.contains(ExplainDetail.ANALYZED_PHYSICAL_PLAN)) {
+      throw new UnsupportedOperationException(
+        "Currently, EXPLAIN ANALYZED_PHYSICAL_PLAN is not supported under batch mode.")
+    }
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new mutable.StringBuilder
