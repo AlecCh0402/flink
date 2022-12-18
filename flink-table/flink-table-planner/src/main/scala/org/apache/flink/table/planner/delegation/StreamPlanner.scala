@@ -28,6 +28,8 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, Operation}
+import org.apache.flink.table.planner.analyze.PlanAnalyzer.AnalyzedResult
+import org.apache.flink.table.planner.analyze.PlanAnalyzerManager
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
@@ -35,12 +37,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphPro
 import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.io.{File, IOException}
@@ -63,6 +67,8 @@ class StreamPlanner(
     catalogManager,
     isStreamingMode = true,
     classLoader) {
+
+  private val planAnalyzerManager = new PlanAnalyzerManager
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
@@ -96,42 +102,71 @@ class StreamPlanner(
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new mutable.StringBuilder
-    sb.append("== Abstract Syntax Tree ==")
-    sb.append(System.lineSeparator)
-    sinkRelNodes.foreach {
-      sink =>
-        // use EXPPLAN_ATTRIBUTES to make the ast result more readable
-        // and to keep the previous behavior
-        sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
-        sb.append(System.lineSeparator)
-    }
+    val withAnalyzed = extraDetails.contains(ExplainDetail.ANALYZED_PHYSICAL_PLAN)
 
-    sb.append("== Optimized Physical Plan ==")
-    sb.append(System.lineSeparator)
-    val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
-      SqlExplainLevel.ALL_ATTRIBUTES
+    if (withAnalyzed && extraDetails.size == 1) {
+      sb.append(explainAnalyzed(optimizedRelNodes))
     } else {
-      SqlExplainLevel.DIGEST_ATTRIBUTES
-    }
-    val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
-    optimizedRelNodes.foreach {
-      rel =>
-        sb.append(
-          FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
+      sb.append("== Abstract Syntax Tree ==")
+      sb.append(System.lineSeparator)
+      sinkRelNodes.foreach {
+        sink =>
+          // use EXPPLAN_ATTRIBUTES to make the ast result more readable
+          // and to keep the previous behavior
+          sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
+          sb.append(System.lineSeparator)
+      }
+
+      sb.append("== Optimized Physical Plan ==")
+      sb.append(System.lineSeparator)
+      val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
+        SqlExplainLevel.ALL_ATTRIBUTES
+      } else {
+        SqlExplainLevel.DIGEST_ATTRIBUTES
+      }
+      val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
+      optimizedRelNodes.foreach {
+        rel =>
+          sb.append(
+            FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
+          sb.append(System.lineSeparator)
+      }
+
+      sb.append("== Optimized Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(ExecNodePlanDumper.dagToString(execGraph))
+
+      if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
         sb.append(System.lineSeparator)
+        sb.append("== Physical Execution Plan ==")
+        sb.append(System.lineSeparator)
+        sb.append(streamGraph.getStreamingPlanAsJSON)
+      }
+
+      if (withAnalyzed) {
+        sb.append(System.lineSeparator)
+        sb.append("== Analyzed Physical Plan ==")
+        sb.append(System.lineSeparator)
+        sb.append(explainAnalyzed(optimizedRelNodes))
+      }
     }
+    sb.toString()
+  }
 
-    sb.append("== Optimized Execution Plan ==")
-    sb.append(System.lineSeparator)
-    sb.append(ExecNodePlanDumper.dagToString(execGraph))
-
-    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
-      sb.append(System.lineSeparator)
-      sb.append("== Physical Execution Plan ==")
-      sb.append(System.lineSeparator)
-      sb.append(streamGraph.getStreamingPlanAsJSON)
-    }
-
+  def explainAnalyzed(optimizedRelNodes: Seq[RelNode]): String = {
+    val sb = new mutable.StringBuilder
+    optimizedRelNodes.foreach(
+      rel => {
+        val results = new util.ArrayList[AnalyzedResult]()
+        planAnalyzerManager.getAnalyzers
+          .foreach(
+            analyzer => {
+              analyzer
+                .analyze(rel.asInstanceOf[FlinkPhysicalRel])
+                .ifPresent(result => results.add(result))
+            })
+        sb.append(FlinkRelOptUtil.toString(rel, results))
+      })
     sb.toString()
   }
 

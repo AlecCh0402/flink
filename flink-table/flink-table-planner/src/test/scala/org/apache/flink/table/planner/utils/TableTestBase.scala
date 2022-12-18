@@ -44,7 +44,7 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
-import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.delegation.{PlannerBase, StreamPlanner}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{InternalDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
@@ -646,6 +646,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array(PlanKind.AST, PlanKind.OPT_EXEC))
   }
 
+  def verifyAnalyzedPlan(insert: String): Unit = {
+    doVerifyPlanInsert(
+      insert,
+      Array(ExplainDetail.ANALYZED_PHYSICAL_PLAN),
+      withRowType = true,
+      Array(PlanKind.ANALYZED_OPT_REL))
+  }
+
   /**
    * Verify the AST (abstract syntax tree) and the optimized exec plan for the given [[Table]].
    * Note: An exception will be thrown if the given sql can't be translated to exec plan.
@@ -1000,6 +1008,12 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // check optimized rel plan
     if (expectedPlans.contains(PlanKind.OPT_REL)) {
       assertEqualsOrExpand("optimized rel plan", optimizedRelPlan, expand = false)
+    }
+    // check analyzed optimized rel plan
+    if (expectedPlans.contains(PlanKind.ANALYZED_OPT_REL)) {
+      val analyzedOptimizedRelPlan =
+        getPlanner.asInstanceOf[StreamPlanner].explainAnalyzed(optimizedRels)
+      assertEqualsOrExpand("analyzed optimized rel plan", analyzedOptimizedRelPlan, expand = false)
     }
     // check optimized exec plan
     if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
@@ -1609,6 +1623,9 @@ object PlanKind extends Enumeration {
 
   /** Optimized Execution Plan */
   val OPT_EXEC: Value = Value("OPT_EXEC")
+
+  /** Analyzed Optimized Rel Plan */
+  val ANALYZED_OPT_REL: Value = Value("ANALYZED_OPT_REL")
 }
 
 object TableTestUtil {

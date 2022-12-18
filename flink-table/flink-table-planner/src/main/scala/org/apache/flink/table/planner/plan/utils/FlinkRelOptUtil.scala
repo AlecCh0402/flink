@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.JBoolean
+import org.apache.flink.table.planner.analyze.PlanAnalyzer.AnalyzedResult
 import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
@@ -35,6 +36,7 @@ import org.apache.commons.math3.util.ArithmeticUtils
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
+import java.util
 import java.util.Calendar
 
 import scala.collection.JavaConversions._
@@ -87,6 +89,17 @@ object FlinkRelOptUtil {
       withJoinHint = true,
       withQueryBlockAlias)
     rel.explain(planWriter)
+    sw.toString
+  }
+
+  def toString(rel: RelNode, analyzedResults: util.List[AnalyzedResult]): String = {
+    if (rel == null) {
+      return null
+    }
+
+    val sw = new StringWriter
+    val jsonWriter = new RelJsonWriterImpl(new PrintWriter(sw), analyzedResults)
+    rel.explain(jsonWriter)
     sw.toString
   }
 
