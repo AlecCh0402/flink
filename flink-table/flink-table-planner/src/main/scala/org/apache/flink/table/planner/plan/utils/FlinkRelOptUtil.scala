@@ -92,14 +92,25 @@ object FlinkRelOptUtil {
     sw.toString
   }
 
-  def toString(rel: RelNode, analyzedResults: util.List[AnalyzedResult]): String = {
-    if (rel == null) {
-      return null
-    }
-
+  def toJsonString(
+      rels: Seq[RelNode],
+      analyzedResults: util.List[util.List[AnalyzedResult]]): String = {
     val sw = new StringWriter
-    val jsonWriter = new RelJsonWriterImpl(new PrintWriter(sw), analyzedResults)
-    rel.explain(jsonWriter)
+    val singleRel = rels.size match {
+      case 1 => true
+      case _ => false
+    }
+    val jsonWriter = new RelJsonWriterImpl(new PrintWriter(sw), analyzedResults.get(0), singleRel)
+    rels.zipWithIndex.foreach {
+      case (rel, idx) =>
+        if (idx > 0) {
+          jsonWriter.addResults(analyzedResults.get(idx))
+        }
+        rel.explain(jsonWriter)
+        if (idx > 0 && idx == rels.length - 1) {
+          jsonWriter.printToJson()
+        }
+    }
     sw.toString
   }
 

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.planner.analyze.NonDeterministicUpdateAnalyzer;
 import org.apache.flink.table.planner.analyze.PlanAnalyzer;
 import org.apache.flink.table.planner.analyze.SplitDistinctAggAnalyzer;
+import org.apache.flink.table.planner.analyze.StateExpireRiskAnalyzer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +44,8 @@ public class StreamPlanAnalyzerFactory implements PlanAnalyzerFactory {
     @Override
     public List<PlanAnalyzer> createAnalyzers() {
         return Arrays.asList(
-                SplitDistinctAggAnalyzer.INSTANCE, NonDeterministicUpdateAnalyzer.INSTANCE);
+                StateExpireRiskAnalyzer.INSTANCE,
+                SplitDistinctAggAnalyzer.INSTANCE,
+                NonDeterministicUpdateAnalyzer.INSTANCE);
     }
 }

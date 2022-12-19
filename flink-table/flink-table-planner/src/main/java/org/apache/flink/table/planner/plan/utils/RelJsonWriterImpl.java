@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.analyze.PlanAdvice;
 import org.apache.flink.table.planner.analyze.PlanAnalyzer;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,25 +62,51 @@ public class RelJsonWriterImpl extends RelWriterImpl {
     public static final String NODES = "nodes";
     public static final String TYPE = "type";
     public static final String PREDECESSORS = "predecessors";
+    public static final String SCOPE = "scope";
 
     private final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
     private final List<Vertex> vertices = new ArrayList<>();
     private final Map<Integer, Edge> relIdToOutputEdge = new HashMap<>();
 
     private final Map<Integer, Integer> relIdToVertex = new HashMap<>();
+
+    /** For plan reuse. */
+    private final Map<Integer, Vertex> reusedRelIdToVertex = new HashMap<>();
+
     private final AtomicInteger counter = new AtomicInteger(1);
+
+    /** For statement set. */
+    private final boolean singleRel;
 
     private final List<PlanAnalyzer.AnalyzedResult> analyzedResults;
 
-    public RelJsonWriterImpl(PrintWriter pw, List<PlanAnalyzer.AnalyzedResult> analyzedResults) {
+    private int reuseVertexId;
+
+    private boolean latestVertexIsReused;
+
+    public RelJsonWriterImpl(
+            PrintWriter pw, List<PlanAnalyzer.AnalyzedResult> analyzedResults, boolean singleRel) {
         super(pw, SqlExplainLevel.DIGEST_ATTRIBUTES, false);
         this.analyzedResults = analyzedResults;
+        this.singleRel = singleRel;
     }
 
     @Override
     protected void explain_(RelNode rel, List<Pair<String, @Nullable Object>> values) {
         visit(rel);
-        pw.print(toJson());
+        if (singleRel) {
+            pw.print(toJson());
+        }
+    }
+
+    public void printToJson() {
+        if (!singleRel) {
+            pw.print(toJson());
+        }
+    }
+
+    public void addResults(List<PlanAnalyzer.AnalyzedResult> results) {
+        this.analyzedResults.addAll(results);
     }
 
     private String toJson() {
@@ -107,14 +137,17 @@ public class RelJsonWriterImpl extends RelWriterImpl {
             json.put(ADVICE, adviceList);
             for (PlanAnalyzer.AnalyzedResult result : analyzedResults) {
                 ObjectNode advice = mapper.createObjectNode();
-                advice.put(TYPE, result.advice().getKind().name());
-                advice.put(CONTENT, result.advice().getContent());
-                ArrayNode vertexList = mapper.createArrayNode();
-                advice.put(ID, vertexList);
-                result.targetIds().stream()
-                        .map(relIdToVertex::get)
-                        .sorted()
-                        .forEach(vertexList::add);
+                advice.put(TYPE, result.getAdvice().getKind().name());
+                advice.put(SCOPE, result.getAdvice().getScope().name());
+                advice.put(CONTENT, result.getAdvice().getContent());
+                if (result.getAdvice().getScope() == PlanAdvice.Scope.LOCAL) {
+                    ArrayNode vertexList = mapper.createArrayNode();
+                    advice.put(ID, vertexList);
+                    result.getTargetIds().stream()
+                            .map(relIdToVertex::get)
+                            .sorted()
+                            .forEach(vertexList::add);
+                }
                 adviceList.add(advice);
             }
         }
@@ -127,28 +160,55 @@ public class RelJsonWriterImpl extends RelWriterImpl {
         }
         // create edge instead of vertex for exchange
         if (rel instanceof Exchange) {
-            int prevId = counter.get() - 1;
-            relIdToOutputEdge.values().stream()
-                    .filter(edge -> edge.id == prevId)
-                    .findAny()
-                    .ifPresent(
-                            edge -> {
-                                edge.distribution =
-                                        ((Exchange) rel).getDistribution().getType().name();
-                                edge.changelogMode = getChangelogMode(rel);
-                                relIdToOutputEdge.put(rel.getId(), edge);
-                            });
+            int prevId = latestVertexIsReused ? reuseVertexId : counter.get() - 1;
+            if (!latestVertexIsReused) {
+                relIdToOutputEdge.values().stream()
+                        .filter(edge -> edge.id == prevId)
+                        .findAny()
+                        .ifPresent(
+                                edge -> {
+                                    edge.distribution =
+                                            ((Exchange) rel).getDistribution().getType().name();
+                                    edge.changelogMode = getChangelogMode(rel);
+                                    relIdToOutputEdge.put(rel.getId(), edge);
+                                });
+                counter.getAndIncrement();
+            }
         } else {
-            Vertex current = createVertex(rel);
-            rel.getInputs().stream()
-                    .map(RelOptNode::getId)
-                    .map(relIdToOutputEdge::get)
-                    .forEach(current::addPredecessor);
-            vertices.add(current);
-            relIdToOutputEdge.put(rel.getId(), createEdge(current.id, current.changelogMode));
-            relIdToVertex.put(rel.getId(), current.id);
+            Vertex current = createVertexIfNotExist(rel);
+            if (!latestVertexIsReused) {
+                rel.getInputs().stream()
+                        .map(RelOptNode::getId)
+                        .map(relIdToOutputEdge::get)
+                        .forEach(current::addPredecessor);
+                vertices.add(current);
+                relIdToOutputEdge.put(rel.getId(), createEdge(current.id, current.changelogMode));
+                counter.getAndIncrement();
+                relIdToVertex.put(rel.getId(), current.id);
+            } else {
+                reuseVertexId = current.id;
+            }
         }
-        counter.getAndIncrement();
+    }
+
+    private Vertex createVertexIfNotExist(RelNode rel) {
+        TableConfig tableConfig = ShortcutUtils.unwrapTableConfig(rel);
+        boolean tableSourceReuseEnabled =
+                tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED);
+        if (tableSourceReuseEnabled) {
+            Vertex vertex = reusedRelIdToVertex.get(rel.getId());
+            if (vertex == null) {
+                latestVertexIsReused = false;
+                vertex = createVertex(rel);
+                reusedRelIdToVertex.put(rel.getId(), vertex);
+            } else {
+                latestVertexIsReused = true;
+            }
+            return vertex;
+        } else {
+            latestVertexIsReused = false;
+            return createVertex(rel);
+        }
     }
 
     private Vertex createVertex(RelNode rel) {

@@ -39,8 +39,8 @@ public enum ExplainDetail {
     JSON_EXECUTION_PLAN,
 
     /**
-     * The analyzed physical plan with potential data loss warnings and tuning performance
-     * suggestions in json format of the program.
+     * The analyzed physical plan in json format of the program, including potential risk warnings
+     * and performance tuning advices.
      */
     ANALYZED_PHYSICAL_PLAN
 }

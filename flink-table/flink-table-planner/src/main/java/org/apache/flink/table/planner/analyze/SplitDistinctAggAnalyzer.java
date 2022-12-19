@@ -54,12 +54,12 @@ public class SplitDistinctAggAnalyzer implements PlanAnalyzer {
 
     private static final PlanAdvice SPLIT_AGG =
             new PlanAdvice(
-                    SplitDistinctAggAnalyzer.class.getSimpleName(),
+                    PlanAdvice.Kind.ADVICE,
+                    PlanAdvice.Scope.LOCAL,
                     String.format(
                             "You might want to set '%s' = 'true' to enable distinct aggregate optimization.",
                             OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED
-                                    .key()),
-                    PlanAdvice.AdviceKind.HINT);
+                                    .key()));
 
     private SplitDistinctAggAnalyzer() {}
 
@@ -83,12 +83,12 @@ public class SplitDistinctAggAnalyzer implements PlanAnalyzer {
                 return Optional.of(
                         new AnalyzedResult() {
                             @Override
-                            public PlanAdvice advice() {
+                            public PlanAdvice getAdvice() {
                                 return SPLIT_AGG;
                             }
 
                             @Override
-                            public List<Integer> targetIds() {
+                            public List<Integer> getTargetIds() {
                                 return targetRelIds;
                             }
                         });

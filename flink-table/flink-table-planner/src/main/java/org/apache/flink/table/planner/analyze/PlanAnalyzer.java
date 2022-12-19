@@ -38,8 +38,8 @@ public interface PlanAnalyzer {
     /** The analyzed {@link PlanAdvice} with a list of applicable {@link RelNode} ids. */
     interface AnalyzedResult {
 
-        PlanAdvice advice();
+        PlanAdvice getAdvice();
 
-        List<Integer> targetIds();
+        List<Integer> getTargetIds();
     }
 }

@@ -155,6 +155,7 @@ class StreamPlanner(
 
   def explainAnalyzed(optimizedRelNodes: Seq[RelNode]): String = {
     val sb = new mutable.StringBuilder
+    val resultSet = new util.ArrayList[util.List[AnalyzedResult]]()
     optimizedRelNodes.foreach(
       rel => {
         val results = new util.ArrayList[AnalyzedResult]()
@@ -165,8 +166,9 @@ class StreamPlanner(
                 .analyze(rel.asInstanceOf[FlinkPhysicalRel])
                 .ifPresent(result => results.add(result))
             })
-        sb.append(FlinkRelOptUtil.toString(rel, results))
+        resultSet.add(results)
       })
+    sb.append(FlinkRelOptUtil.toJsonString(optimizedRelNodes, resultSet))
     sb.toString()
   }
 

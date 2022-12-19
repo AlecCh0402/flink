@@ -24,36 +24,60 @@ import org.apache.flink.annotation.Experimental;
 @Experimental
 public final class PlanAdvice {
 
+    private final Kind kind;
+
+    private final Scope scope;
+
     private String content;
-    private final AdviceKind kind;
 
-    public PlanAdvice(String advisor, String content, AdviceKind kind) {
-        this.content = content;
+    public PlanAdvice(Kind kind, Scope scope, String content) {
         this.kind = kind;
-    }
-
-    public PlanAdvice(String advisor, AdviceKind kind) {
-        this(advisor, "", kind);
-    }
-
-    public void withContent(String content) {
+        this.scope = scope;
         this.content = content;
+    }
+
+    public PlanAdvice(Kind kind, Scope scope) {
+        this(kind, scope, "");
+    }
+
+    public PlanAdvice withContent(String content) {
+        this.content = content;
+        return this;
     }
 
     public String getContent() {
         return content;
     }
 
-    public AdviceKind getKind() {
+    public Scope getScope() {
+        return scope;
+    }
+
+    public Kind getKind() {
         return kind;
     }
 
-    /** Categorizes the semantics of a {@link PlanAdvice}. */
+    /** Categorize the semantics of a {@link PlanAdvice}. */
     @Experimental
-    public enum AdviceKind {
+    public enum Kind {
         /** Indicate the potential risk. */
         WARNING,
         /** Indicate the potential optimization. */
-        HINT
+        ADVICE
+    }
+
+    /** Categorize the scope of a {@link PlanAdvice}. */
+    @Experimental
+    public enum Scope {
+        /**
+         * Indicate a global advice, which is not specific to a {@link
+         * org.apache.calcite.rel.RelNode}.
+         */
+        GLOBAL,
+        /**
+         * Indicate a local advice, which could be located to a specific {@link
+         * org.apache.calcite.rel.RelNode}.
+         */
+        LOCAL
     }
 }
