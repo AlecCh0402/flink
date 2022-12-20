@@ -647,7 +647,7 @@ public class SqlToOperationConverterTest {
     @Test
     public void testExplainWithExplainDetails() {
         String sql =
-                "explain changelog_mode, estimated_cost, json_execution_plan, analyzed_json_plan select * from t1";
+                "explain changelog_mode, estimated_cost, json_execution_plan, analyzed_physical_plan select * from t1";
         checkExplainSql(sql);
     }
 

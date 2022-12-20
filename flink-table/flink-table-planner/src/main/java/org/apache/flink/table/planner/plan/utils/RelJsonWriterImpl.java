@@ -70,7 +70,7 @@ public class RelJsonWriterImpl extends RelWriterImpl {
 
     private final Map<Integer, Integer> relIdToVertex = new HashMap<>();
 
-    /** For plan reuse. */
+    /** For plan reuse, map key is the reused rel id. */
     private final Map<Integer, Vertex> reusedRelIdToVertex = new HashMap<>();
 
     private final AtomicInteger counter = new AtomicInteger(1);

@@ -68,7 +68,7 @@ class StreamPlanner(
     isStreamingMode = true,
     classLoader) {
 
-  private val planAnalyzerManager = new PlanAnalyzerManager
+  private var planAnalyzerManager: PlanAnalyzerManager = _
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
@@ -154,6 +154,10 @@ class StreamPlanner(
   }
 
   def explainAnalyzed(optimizedRelNodes: Seq[RelNode]): String = {
+    if (planAnalyzerManager == null) {
+      planAnalyzerManager = new PlanAnalyzerManager
+      planAnalyzerManager.registerAnalyzers(getClass.getClassLoader)
+    }
     val sb = new mutable.StringBuilder
     val resultSet = new util.ArrayList[util.List[AnalyzedResult]]()
     optimizedRelNodes.foreach(

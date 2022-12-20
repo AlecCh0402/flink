@@ -34,17 +34,16 @@ public class PlanAnalyzerManager {
 
     public PlanAnalyzerManager() {
         this.analyzers = new ArrayList<>();
-        registerAnalyzers();
     }
 
     public List<PlanAnalyzer> getAnalyzers() {
         return analyzers;
     }
 
-    private void registerAnalyzers() {
+    public void registerAnalyzers(ClassLoader classLoader) {
         analyzers.addAll(
                 FactoryUtil.discoverFactory(
-                                Thread.currentThread().getContextClassLoader(),
+                                classLoader,
                                 PlanAnalyzerFactory.class,
                                 StreamPlanAnalyzerFactory.STREAM_IDENTIFIER)
                         .createAnalyzers());
