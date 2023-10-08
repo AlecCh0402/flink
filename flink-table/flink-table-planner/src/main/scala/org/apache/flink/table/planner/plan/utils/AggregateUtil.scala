@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTrait, ModifyKindSetTraitDef, RelModifiedMonotonicity}
 import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -59,14 +60,18 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.core.Aggregate.AggCallBinding
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.tools.RelBuilder
 
+import javax.swing.JList
+
 import java.time.Duration
 import java.util
+import java.util.stream.Collectors
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -1188,5 +1193,27 @@ object AggregateUtil extends Enumeration {
             case _ => None
           })
       .exists(_.getKind == FunctionKind.TABLE_AGGREGATE)
+  }
+
+  def getTtlFromHint(hints: util.List[RelHint]): JLong = {
+    val stateTtlHint =
+      hints
+        .stream()
+        .filter(hint => StateTtlHint.isStateTtlHint(hint.hintName))
+        .findFirst()
+        .orElse(null)
+    if (stateTtlHint == null) {
+      null
+    } else {
+      stateTtlHint.kvOptions.values().toArray()(0).asInstanceOf[String].toLong
+    }
+  }
+
+  def hintToString(hints: util.List[RelHint]): String = {
+    RelExplainUtil.hintsToString(
+      hints
+        .stream()
+        .filter(hint => StateTtlHint.isStateTtlHint(hint.hintName))
+        .collect(Collectors.toList[RelHint]))
   }
 }

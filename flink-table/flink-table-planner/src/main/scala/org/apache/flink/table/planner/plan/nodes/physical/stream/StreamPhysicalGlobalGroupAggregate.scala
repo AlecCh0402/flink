@@ -17,17 +17,23 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.{JList, JLong}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.{getTtlFromHint, hintToString}
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.hint.RelHint
+
+import java.util.Collections
 
 /**
  * Stream physical RelNode for unbounded global group aggregate.
@@ -46,7 +52,8 @@ class StreamPhysicalGlobalGroupAggregate(
     val localAggInputRowType: RelDataType,
     val needRetraction: Boolean,
     val partialFinalType: PartialFinalType,
-    indexOfCountStar: Option[Int] = Option.empty)
+    indexOfCountStar: Option[Int] = Option.empty,
+    val hints: JList[RelHint] = Collections.emptyList[RelHint]())
   extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   // if the indexOfCountStar is valid, the needRetraction should be true
@@ -90,7 +97,8 @@ class StreamPhysicalGlobalGroupAggregate(
       localAggInputRowType,
       needRetraction,
       partialFinalType,
-      indexOfCountStar)
+      indexOfCountStar,
+      hints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -110,6 +118,11 @@ class StreamPhysicalGlobalGroupAggregate(
           grouping,
           isGlobal = true))
       .itemIf("indexOfCountStar", indexOfCountStar.getOrElse(-1), indexOfCountStar.nonEmpty)
+      .itemIf(
+        "hints",
+        hintToString(hints),
+        hints.stream().anyMatch(hint => StateTtlHint.isStateTtlHint(hint.hintName))
+      )
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -123,6 +136,7 @@ class StreamPhysicalGlobalGroupAggregate(
       generateUpdateBefore,
       needRetraction,
       indexOfCountStar.map(Integer.valueOf).orNull,
+      getTtlFromHint(hints),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

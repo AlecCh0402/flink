@@ -100,8 +100,10 @@ class FlinkSubQueryRemoveRule(
         val newNode = relBuilder.build
         val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
         val nodeWithCapitalizedJoinHints = FlinkHints.capitalizeJoinHints(nodeWithHint)
+        val nodeWithNormalizedStateTtlHints =
+          FlinkHints.normalizeStateTtlHints(nodeWithCapitalizedJoinHints)
         val finalNode =
-          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintWithInvalidPropagationShuttle)
+          nodeWithNormalizedStateTtlHints.accept(new ClearJoinHintWithInvalidPropagationShuttle)
         call.transformTo(finalNode)
       case _ => // do nothing
     }

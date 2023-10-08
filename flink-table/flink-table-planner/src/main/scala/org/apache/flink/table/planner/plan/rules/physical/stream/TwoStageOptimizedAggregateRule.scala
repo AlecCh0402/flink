@@ -137,7 +137,8 @@ class TwoStageOptimizedAggregateRule
       aggCallNeedRetractions,
       realInput.getRowType,
       needRetraction,
-      originalAgg.partialFinalType)
+      originalAgg.partialFinalType,
+      hints = originalAgg.hints)
 
     call.transformTo(globalAgg)
   }

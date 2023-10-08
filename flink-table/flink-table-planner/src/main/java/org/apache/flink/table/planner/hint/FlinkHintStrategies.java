@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+import org.apache.flink.util.TimeUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
 
@@ -92,6 +93,13 @@ public abstract class FlinkHintStrategies {
                                         HintPredicates.or(
                                                 HintPredicates.CORRELATE, HintPredicates.JOIN))
                                 .optionChecker(LOOKUP_NON_EMPTY_KV_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
+                        StateTtlHint.STATE_TTL.getHintName(),
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.JOIN, HintPredicates.AGGREGATE))
+                                .optionChecker(STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER)
                                 .build())
                 .build();
     }
@@ -208,6 +216,27 @@ public abstract class FlinkHintStrategies {
                             LookupJoinHintOptions.MAX_ATTEMPTS.key(),
                             maxAttempts);
                 }
+                return true;
+            };
+
+    private static final HintOptionChecker STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER =
+            (ttlHint, litmus) -> {
+                litmus.check(
+                        ttlHint.listOptions.size() == 0,
+                        "Invalid list options in STATE_TTL hint, only support key-value options.");
+
+                // validate the hint value
+                ttlHint.kvOptions
+                        .values()
+                        .forEach(
+                                value -> {
+                                    try {
+                                        TimeUtils.parseDuration(value);
+                                    } catch (IllegalArgumentException e) {
+                                        litmus.fail(
+                                                "Invalid STATE_TTL hint value: {}", e.getMessage());
+                                    }
+                                });
                 return true;
             };
 }

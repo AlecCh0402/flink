@@ -20,12 +20,14 @@ package org.apache.flink.table.planner.alias;
 
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
+import org.apache.flink.table.planner.hint.StateTtlHint;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
@@ -60,15 +62,24 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
         return visitBiRel(correlate);
     }
 
+    @Override
+    public RelNode visit(LogicalAggregate aggregate) {
+        return doVisit(aggregate);
+    }
+
     private RelNode visitBiRel(BiRel biRel) {
-        List<RelHint> hints = ((Hintable) biRel).getHints();
+        return doVisit(biRel);
+    }
+
+    private RelNode doVisit(RelNode rel) {
+        List<RelHint> hints = ((Hintable) rel).getHints();
 
         Set<String> allHintNames =
                 hints.stream().map(hint -> hint.hintName).collect(Collectors.toSet());
 
         // there are no join hints on this Join/Correlate node
         if (allHintNames.stream().noneMatch(JoinStrategy::isJoinStrategy)) {
-            return super.visit(biRel);
+            return super.visit(rel);
         }
 
         Optional<RelHint> firstAliasHint =
@@ -78,34 +89,39 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
 
         // there are no alias hints on this Join/Correlate node
         if (!firstAliasHint.isPresent()) {
-            return super.visit(biRel);
+            return super.visit(rel);
         }
 
         List<RelHint> joinHintsFromOuterQueryBlock =
                 hints.stream()
                         .filter(
                                 hint ->
-                                        JoinStrategy.isJoinStrategy(hint.hintName)
-                                                // if the size of inheritPath is bigger than 0, it
-                                                // means that this join hint is propagated from its
-                                                // parent
+                                        disallowPropagationHint(hint)
+                                                // if the size of inheritPath is bigger than
+                                                // 0, it means that this join hint is
+                                                // propagated from its parent
                                                 && hint.inheritPath.size()
                                                         > firstAliasHint.get().inheritPath.size())
                         .collect(Collectors.toList());
 
         if (joinHintsFromOuterQueryBlock.isEmpty()) {
-            return super.visit(biRel);
+            return super.visit(rel);
         }
 
-        RelNode newJoin = biRel;
+        RelNode newRel = rel;
         ClearOuterJoinHintShuttle clearOuterJoinHintShuttle;
 
         for (RelHint outerJoinHint : joinHintsFromOuterQueryBlock) {
             clearOuterJoinHintShuttle = new ClearOuterJoinHintShuttle(outerJoinHint);
-            newJoin = newJoin.accept(clearOuterJoinHintShuttle);
+            newRel = newRel.accept(clearOuterJoinHintShuttle);
         }
 
-        return super.visit(newJoin);
+        return super.visit(newRel);
+    }
+
+    private boolean disallowPropagationHint(RelHint hint) {
+        return JoinStrategy.isJoinStrategy(hint.hintName)
+                || StateTtlHint.isStateTtlHint(hint.hintName);
     }
 
     /**
@@ -143,18 +159,27 @@ public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
             return visitBiRel(join);
         }
 
+        @Override
+        public RelNode visit(LogicalAggregate aggregate) {
+            return doVisit(aggregate);
+        }
+
         private RelNode visitBiRel(BiRel biRel) {
-            Hintable hBiRel = (Hintable) biRel;
-            List<RelHint> hints = new ArrayList<>(hBiRel.getHints());
+            return doVisit(biRel);
+        }
+
+        private RelNode doVisit(RelNode rel) {
+            Hintable hintable = (Hintable) rel;
+            List<RelHint> hints = new ArrayList<>(hintable.getHints());
             Optional<RelHint> invalidJoinHint = getInvalidJoinHint(hints);
 
             // if this join node contains the join hint that needs to be removed
             if (invalidJoinHint.isPresent()) {
                 hints.remove(invalidJoinHint.get());
-                return super.visit(hBiRel.withHints(hints));
+                return super.visit(hintable.withHints(hints));
             }
 
-            return super.visit(biRel);
+            return super.visit(rel);
         }
 
         /**

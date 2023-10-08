@@ -223,6 +223,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // replace all join hints with upper case
         newRootRel = FlinkHints.capitalizeJoinHints(newRootRel);
+        newRootRel = FlinkHints.normalizeStateTtlHints(newRootRel);
 
         // clear join hints which are propagated into wrong query block
         // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to

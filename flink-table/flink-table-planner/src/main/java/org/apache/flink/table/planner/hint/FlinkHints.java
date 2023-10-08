@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.hint;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
+import org.apache.flink.util.TimeUtils;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.BiRel;
@@ -28,6 +29,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
@@ -167,7 +169,10 @@ public abstract class FlinkHints {
     /** Get all join hints. */
     public static List<RelHint> getAllJoinHints(List<RelHint> allHints) {
         return allHints.stream()
-                .filter(hint -> JoinStrategy.isJoinStrategy(hint.hintName))
+                .filter(
+                        hint ->
+                                JoinStrategy.isJoinStrategy(hint.hintName)
+                                        || StateTtlHint.isStateTtlHint(hint.hintName))
                 .collect(Collectors.toList());
     }
 
@@ -186,6 +191,10 @@ public abstract class FlinkHints {
 
     public static RelNode capitalizeJoinHints(RelNode root) {
         return root.accept(new CapitalizeJoinHintShuttle());
+    }
+
+    public static RelNode normalizeStateTtlHints(RelNode root) {
+        return root.accept(new NormalizeStateTtlHintShuttle());
     }
 
     private static class CapitalizeJoinHintShuttle extends RelShuttleImpl {
@@ -211,7 +220,7 @@ public abstract class FlinkHints {
                                                 hint.hintName.toUpperCase(Locale.ROOT);
                                         if (JoinStrategy.isJoinStrategy(capitalHintName)) {
                                             changed.set(true);
-                                            if (JoinStrategy.isLookupHint(hint.hintName)) {
+                                            if (isKvOptionsHint(hint)) {
                                                 return RelHint.builder(capitalHintName)
                                                         .hintOptions(hint.kvOptions)
                                                         .inheritPath(hint.inheritPath)
@@ -232,6 +241,57 @@ public abstract class FlinkHints {
             } else {
                 return super.visit(biRel);
             }
+        }
+
+        private boolean isKvOptionsHint(RelHint hint) {
+            String hintName = hint.hintName;
+            return JoinStrategy.isLookupHint(hintName) || StateTtlHint.isStateTtlHint(hintName);
+        }
+    }
+
+    private static class NormalizeStateTtlHintShuttle extends RelShuttleImpl {
+        @Override
+        public RelNode visit(LogicalAggregate aggregate) {
+            return doVisit(aggregate);
+        }
+
+        @Override
+        public RelNode visit(LogicalJoin join) {
+            return doVisit(join);
+        }
+
+        private RelNode doVisit(RelNode rel) {
+            Hintable hintable = (Hintable) rel;
+            AtomicBoolean changed = new AtomicBoolean(false);
+            List<RelHint> normalizedStateTtlHints =
+                    hintable.getHints().stream()
+                            .map(
+                                    hint -> {
+                                        if (StateTtlHint.isStateTtlHint(hint.hintName)) {
+                                            changed.set(true);
+                                            Map<String, String> newKvOptions = new HashMap<>();
+                                            hint.kvOptions.forEach(
+                                                    (k, v) ->
+                                                            newKvOptions.put(
+                                                                    k,
+                                                                    String.valueOf(
+                                                                            TimeUtils.parseDuration(
+                                                                                            v)
+                                                                                    .toMillis())));
+                                            return RelHint.builder(hint.hintName)
+                                                    .hintOptions(newKvOptions)
+                                                    .inheritPath(hint.inheritPath)
+                                                    .build();
+                                        } else {
+                                            return hint;
+                                        }
+                                    })
+                            .collect(Collectors.toList());
+
+            if (changed.get()) {
+                return super.visit(hintable.withHints(normalizedStateTtlHints));
+            }
+            return super.visit(rel);
         }
     }
 }

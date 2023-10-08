@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
+import org.apache.flink.table.planner.hint.StateTtlHint;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
@@ -135,6 +136,18 @@ public class JoinHintResolver extends RelShuttleImpl {
                                     .hintOptions(singletonList(newOptions.get(0)))
                                     .build());
                 }
+            } else if (StateTtlHint.isStateTtlHint(hint.hintName)) {
+                List<String> definedTables = new ArrayList<>(hint.kvOptions.keySet());
+                initOptionInfoAboutJoinHintsForCheck(hint.hintName, definedTables);
+                // replace matched table/view name with input ordinal
+                Map<String, String> newKvOptions =
+                        getNewJoinStateTtlHintOptions(
+                                leftName, rightName, hint.kvOptions, hint.hintName);
+                if (!newKvOptions.isEmpty()) {
+                    // only accept a matched hint
+                    validHints.add(trimInheritPath(hint));
+                    newHints.add(RelHint.builder(hint.hintName).hintOptions(newKvOptions).build());
+                }
             } else {
                 if (!existentKVHints.contains(hint)) {
                     existentKVHints.add(hint);
@@ -188,6 +201,34 @@ public class JoinHintResolver extends RelShuttleImpl {
                         })
                 .filter(StringUtils::isNotEmpty)
                 .collect(Collectors.toList());
+    }
+
+    private Map<String, String> getNewJoinStateTtlHintOptions(
+            Optional<String> leftName,
+            Optional<String> rightName,
+            Map<String, String> kvOptions,
+            String hintName) {
+        updateInfoForOptionCheck(hintName, leftName);
+        updateInfoForOptionCheck(hintName, rightName);
+        Map<String, String> newOptions = new HashMap<>();
+        kvOptions.forEach(
+                (input, ttl) -> {
+                    if (leftName.isPresent()
+                            && rightName.isPresent()
+                            && matchIdentifier(input, leftName.get())
+                            && matchIdentifier(input, rightName.get())) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Ambitious option: %s in hint: %s, the input "
+                                                + "relations are: %s, %s",
+                                        input, hintName, leftName, rightName));
+                    } else if (leftName.isPresent() && matchIdentifier(input, leftName.get())) {
+                        newOptions.put(JoinStrategy.LEFT_INPUT, ttl);
+                    } else if (rightName.isPresent() && matchIdentifier(input, rightName.get())) {
+                        newOptions.put(JoinStrategy.RIGHT_INPUT, ttl);
+                    }
+                });
+        return newOptions;
     }
 
     private void validateHints() {

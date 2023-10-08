@@ -17,19 +17,25 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.{JList, JLong}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.{getTtlFromHint, hintToString}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
+import java.util.Collections
+import java.util.stream.Collectors
 
 /**
  * Stream physical RelNode for unbounded group aggregate.
@@ -46,7 +52,8 @@ class StreamPhysicalGroupAggregate(
     outputRowType: RelDataType,
     grouping: Array[Int],
     aggCalls: Seq[AggregateCall],
-    var partialFinalType: PartialFinalType = PartialFinalType.NONE)
+    var partialFinalType: PartialFinalType = PartialFinalType.NONE,
+    val hints: JList[RelHint] = Collections.emptyList[RelHint]())
   extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   private val aggInfoList =
@@ -64,7 +71,8 @@ class StreamPhysicalGroupAggregate(
       outputRowType,
       grouping,
       aggCalls,
-      partialFinalType)
+      partialFinalType,
+      hints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -77,6 +85,11 @@ class StreamPhysicalGroupAggregate(
         "select",
         RelExplainUtil
           .streamGroupAggregationToString(inputRowType, getRowType, aggInfoList, grouping))
+      .itemIf(
+        "hints",
+        hintToString(hints),
+        hints.stream().anyMatch(hint => StateTtlHint.isStateTtlHint(hint.hintName))
+      )
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -91,6 +104,7 @@ class StreamPhysicalGroupAggregate(
       aggCallNeedRetractions,
       generateUpdateBefore,
       needRetraction,
+      getTtlFromHint(hints),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

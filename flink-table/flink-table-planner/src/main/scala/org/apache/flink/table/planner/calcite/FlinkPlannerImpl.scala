@@ -22,7 +22,7 @@ import org.apache.flink.sql.parser.ddl.{SqlCompilePlan, SqlReset, SqlSet, SqlUse
 import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlCompileAndExecutePlan, SqlEndStatementSet, SqlExecute, SqlExecutePlan, SqlStatementSet, SqlTruncateTable}
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.hint.{JoinStrategy, StateTtlHint}
 import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
@@ -265,7 +265,7 @@ class FlinkPlannerImpl(
       JavaScalaConversionUtil.toScala(hints).foreach {
         case hint: SqlHint =>
           val hintName = hint.getName
-          if (JoinStrategy.isJoinStrategy(hintName.toUpperCase(Locale.ROOT))) {
+          if (JoinStrategy.isJoinStrategy(hintName) || StateTtlHint.isStateTtlHint(hintName)) {
             return true
           }
       }
