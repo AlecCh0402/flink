@@ -31,11 +31,16 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /** Aggregate Function used for the groupby (without window) table aggregate. */
 public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(GroupTableAggFunction.class);
 
     private static final long serialVersionUID = 1L;
 
@@ -109,7 +114,6 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
         RowData currentKey = ctx.getCurrentKey();
-
         boolean firstRow;
         RowData accumulators = accState.value();
         if (null == accumulators) {
@@ -118,6 +122,11 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
         } else {
             firstRow = false;
         }
+        LOG.info(
+                "input = [{}, {}, {}]",
+                input.getInt(0),
+                input.getString(1).toString(),
+                input.getInt(2));
 
         // set accumulators to handler first
         function.setAccumulators(accumulators);

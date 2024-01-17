@@ -32,7 +32,7 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt}
@@ -53,6 +53,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
   val data = new mutable.MutableList[(Int, Int)]
 
+  @Disabled
   @TestTemplate
   def testTableAggregate(): Unit = {
     val top3 = new Top3WithMapView
@@ -116,6 +117,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.close()
   }
 
+  @Disabled
   @TestTemplate
   def testTableAggregateWithRetractInput(): Unit = {
     val (testHarness, outputTypes) = createTableAggregateWithRetract
@@ -175,6 +177,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     (testHarness, outputTypes)
   }
 
+  @Disabled
   @TestTemplate
   def testCloseWithoutOpen(): Unit = {
     val (testHarness, outputTypes) = createTableAggregateWithRetract

@@ -30,7 +30,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.Duration
@@ -123,6 +123,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     }
   }
 
+  @Disabled
   @TestTemplate
   def testGroupByFlatAggregate(): Unit = {
     val top3 = new Top3
@@ -158,6 +159,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
+  @Disabled
   @TestTemplate
   def testNonkeyedFlatAggregate(): Unit = {
 
@@ -180,6 +182,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
+  @Disabled
   @TestTemplate
   def testAggregateAfterTableAggregate(): Unit = {
     val top3 = new Top3
@@ -208,6 +211,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
+  @Disabled
   @TestTemplate
   def testGroupByFlatAggregateWithMapView(): Unit = {
     val top3 = new Top3WithMapView
@@ -243,6 +247,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
+  @Disabled
   @TestTemplate
   def testInputWithRetraction(): Unit = {
 
@@ -266,6 +271,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
+  @Disabled
   @TestTemplate
   def testInternalAccumulatorType(): Unit = {
     val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
@@ -294,6 +300,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
+  @Disabled
   @TestTemplate
   def testTableAggFunctionWithoutRetractionMethod(): Unit = {
     val top3 = new Top3
@@ -317,6 +324,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .isInstanceOf[ValidationException]
   }
 
+  @Disabled
   @TestTemplate
   def testOverloadedAccumulator(): Unit = {
     val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)

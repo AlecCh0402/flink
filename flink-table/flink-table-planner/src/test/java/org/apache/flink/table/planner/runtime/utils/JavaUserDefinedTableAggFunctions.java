@@ -22,6 +22,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Test table aggregate table functions. */
 public class JavaUserDefinedTableAggFunctions {
 
@@ -41,6 +44,8 @@ public class JavaUserDefinedTableAggFunctions {
      */
     public static class Top2
             extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2Accumulator> {
+
+        private static final Logger LOG = LoggerFactory.getLogger(Top2.class);
 
         @Override
         public Top2Accumulator createAccumulator() {
@@ -69,9 +74,11 @@ public class JavaUserDefinedTableAggFunctions {
         public void emitValue(Top2Accumulator acc, Collector<Tuple2<Integer, Integer>> out) {
             // emit the value and rank
             if (acc.first != Integer.MIN_VALUE) {
+                LOG.info("emit value {} with rank 1", acc.first);
                 out.collect(Tuple2.of(acc.first, 1));
             }
             if (acc.second != Integer.MIN_VALUE) {
+                LOG.info("emit value {} with rank 2", acc.second);
                 out.collect(Tuple2.of(acc.second, 2));
             }
         }
@@ -79,6 +86,9 @@ public class JavaUserDefinedTableAggFunctions {
 
     /** Subclass of {@link Top2} to support emit incremental changes. */
     public static class IncrementalTop2 extends Top2 {
+
+        private static final Logger LOG = LoggerFactory.getLogger(IncrementalTop2.class);
+
         @Override
         public Top2Accumulator createAccumulator() {
             Top2Accumulator acc = super.createAccumulator();
@@ -99,14 +109,18 @@ public class JavaUserDefinedTableAggFunctions {
             // emit the value and rank only if they're changed
             if (!acc.first.equals(acc.previousFirst)) {
                 if (!acc.previousFirst.equals(Integer.MIN_VALUE)) {
+                    LOG.info("retract previous rank 1 {}", acc.previousFirst);
                     out.retract(Tuple2.of(acc.previousFirst, 1));
                 }
+                LOG.info("update rank 1 to {}", acc.first);
                 out.collect(Tuple2.of(acc.first, 1));
             }
             if (!acc.second.equals(acc.previousSecond)) {
                 if (!acc.previousSecond.equals(Integer.MIN_VALUE)) {
+                    LOG.info("retract previous rank 2 {}", acc.previousSecond);
                     out.retract(Tuple2.of(acc.previousSecond, 2));
                 }
+                LOG.info("update rank 2 to {}", acc.previousSecond);
                 out.collect(Tuple2.of(acc.second, 2));
             }
         }
