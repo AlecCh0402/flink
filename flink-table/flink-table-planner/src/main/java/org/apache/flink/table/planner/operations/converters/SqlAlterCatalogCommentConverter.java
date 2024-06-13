@@ -29,6 +29,6 @@ public class SqlAlterCatalogCommentConverter implements SqlNodeConverter<SqlAlte
     public Operation convertSqlNode(
             SqlAlterCatalogComment sqlAlterCatalogComment, ConvertContext context) {
         return new AlterCatalogCommentOperation(
-                sqlAlterCatalogComment.catalogName(), sqlAlterCatalogComment.getCommentAsString());
+                sqlAlterCatalogComment.catalogName(), sqlAlterCatalogComment.getComment());
     }
 }

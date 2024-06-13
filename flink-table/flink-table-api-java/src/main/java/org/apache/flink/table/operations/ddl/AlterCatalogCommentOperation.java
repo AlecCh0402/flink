@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.CatalogChange;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -30,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Operation to describe a ALTER CATALOG COMMENT statement. */
 @Internal
 public class AlterCatalogCommentOperation implements AlterOperation {
+
     private final String catalogName;
     private final String comment;
 
@@ -56,7 +58,8 @@ public class AlterCatalogCommentOperation implements AlterOperation {
     @Override
     public TableResultInternal execute(Context ctx) {
         try {
-            ctx.getCatalogManager().alterCatalog(catalogName, conf -> {}, oldComment -> comment);
+            ctx.getCatalogManager()
+                    .alterCatalog(catalogName, new CatalogChange.CatalogCommentChange(comment));
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {

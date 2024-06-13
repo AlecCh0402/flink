@@ -21,6 +21,10 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 
+import javax.annotation.Nullable;
+
+import java.util.Optional;
+
 /**
  * Describes a {@link Catalog} with the catalog name and configuration.
  *
@@ -41,7 +45,7 @@ public class CatalogDescriptor {
     private final Configuration configuration;
 
     /* Catalog comment. */
-    private final String comment;
+    @Nullable private final String comment;
 
     public String getCatalogName() {
         return catalogName;
@@ -51,11 +55,16 @@ public class CatalogDescriptor {
         return configuration;
     }
 
-    public String getComment() {
-        return comment;
+    public Optional<String> getComment() {
+        return Optional.ofNullable(comment);
     }
 
-    private CatalogDescriptor(String catalogName, Configuration configuration, String comment) {
+    public CatalogDescriptor setComment(String comment) {
+        return new CatalogDescriptor(catalogName, configuration, comment);
+    }
+
+    private CatalogDescriptor(
+            String catalogName, Configuration configuration, @Nullable String comment) {
         this.catalogName = catalogName;
         this.configuration = configuration;
         this.comment = comment;

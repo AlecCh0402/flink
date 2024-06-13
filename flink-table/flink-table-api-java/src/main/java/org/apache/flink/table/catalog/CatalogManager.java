@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -65,7 +64,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -327,49 +325,35 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * Alters a catalog under the given name. The catalog name must be unique.
      *
      * @param catalogName the given catalog name under which to alter the given catalog
-     * @param catalogUpdater catalog configuration updater to alter catalog
-     * @param catalogCommentUpdater catalog comment updater to alter catalog
+     * @param catalogChange catalog change to update the underlying catalog descriptor
      * @throws CatalogException If the catalog neither exists in the catalog store nor in the
      *     initialized catalogs, or if an error occurs while creating the catalog or storing the
      *     {@link CatalogDescriptor}
      */
-    public void alterCatalog(
-            String catalogName,
-            Consumer<Configuration> catalogUpdater,
-            Function<String, String> catalogCommentUpdater)
+    public void alterCatalog(String catalogName, CatalogChange catalogChange)
             throws CatalogException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(catalogName),
                 "Catalog name cannot be null or empty.");
-        checkNotNull(catalogUpdater, "Catalog configuration updater cannot be null.");
+        checkNotNull(catalogChange, "Catalog change cannot be null.");
 
         CatalogStore catalogStore = catalogStoreHolder.catalogStore();
-        Optional<CatalogDescriptor> oldCatalogDescriptor = getCatalogDescriptor(catalogName);
+        Optional<CatalogDescriptor> oldDescriptorOpt = getCatalogDescriptor(catalogName);
 
-        if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
-            CatalogDescriptor descriptor = oldCatalogDescriptor.get();
-            Configuration conf = descriptor.getConfiguration();
-            String comment = descriptor.getComment();
-            catalogUpdater.accept(conf);
-            comment = catalogCommentUpdater.apply(comment);
-            CatalogDescriptor newCatalogDescriptor =
-                    CatalogDescriptor.of(catalogName, conf, comment);
-            Catalog newCatalog = initCatalog(catalogName, newCatalogDescriptor);
+        if (catalogStore.contains(catalogName) && oldDescriptorOpt.isPresent()) {
+            CatalogDescriptor newDescriptor = catalogChange.applyChange(oldDescriptorOpt.get());
+            Catalog newCatalog = initCatalog(catalogName, newDescriptor);
             catalogStore.removeCatalog(catalogName, false);
             if (catalogs.containsKey(catalogName)) {
                 catalogs.get(catalogName).close();
             }
             newCatalog.open();
             catalogs.put(catalogName, newCatalog);
-            catalogStoreHolder.catalogStore().storeCatalog(catalogName, newCatalogDescriptor);
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, newDescriptor);
         } else {
             throw new CatalogException(
                     String.format("Catalog %s does not exist in the catalog store.", catalogName));
         }
-    }
-
-    public void alterCatalog(String catalogName, Consumer<Configuration> catalogUpdater) {
-        alterCatalog(catalogName, catalogUpdater, Function.identity());
     }
 
     private Catalog initCatalog(String catalogName, CatalogDescriptor catalogDescriptor) {

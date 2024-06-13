@@ -24,6 +24,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
+import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 
@@ -45,12 +46,8 @@ public class SqlAlterCatalogComment extends SqlAlterCatalog {
         return ImmutableNullableList.of(catalogName, comment);
     }
 
-    public SqlCharStringLiteral getComment() {
-        return comment;
-    }
-
-    public String getCommentAsString() {
-        return comment.getValueAs(String.class);
+    public String getComment() {
+        return comment.getValueAs(NlsString.class).getValue();
     }
 
     @Override

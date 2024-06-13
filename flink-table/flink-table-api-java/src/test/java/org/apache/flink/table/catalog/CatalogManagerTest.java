@@ -375,19 +375,35 @@ class CatalogManagerTest {
         assertTrue(catalogManager.getCatalog("cat1").isPresent());
         assertTrue(catalogManager.getCatalog("cat2").isPresent());
         assertTrue(catalogManager.getCatalog("cat3").isPresent());
-        assertTrue(catalogManager.getCatalog("cat_comment").isPresent());
-        assertTrue(catalogManager.getCatalogDescriptor("cat_comment").isPresent());
-        assertEquals(
-                "comment for catalog",
-                catalogManager.getCatalogDescriptor("cat_comment").get().getComment());
+        assertThat(catalogManager.getCatalog("cat_comment")).isPresent();
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor ->
+                                assertThat(descriptor.getComment())
+                                        .isPresent()
+                                        .hasValueSatisfying(
+                                                comment ->
+                                                        assertEquals(
+                                                                "comment for catalog", comment)));
 
         catalogManager.alterCatalog(
                 "cat_comment",
-                conf -> conf.setString("default-database", "db"),
-                comment -> "new " + comment);
-        CatalogDescriptor descriptor = catalogManager.getCatalogDescriptor("cat_comment").get();
-        assertEquals("db", descriptor.getConfiguration().getString("default-database", ""));
-        assertEquals("new comment for catalog", descriptor.getComment());
+                new CatalogChange.CatalogConfigurationChange(
+                        conf -> conf.setString("default-database", "db")));
+        catalogManager.alterCatalog(
+                "cat_comment", new CatalogChange.CatalogCommentChange("new comment"));
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor -> {
+                            assertThat(descriptor.getConfiguration().toMap())
+                                    .containsEntry("default-database", "db");
+                            assertThat(descriptor.getComment())
+                                    .isPresent()
+                                    .hasValueSatisfying(
+                                            comment -> assertEquals("new comment", comment));
+                        });
 
         assertTrue(catalogManager.listCatalogs().contains("cat1"));
         assertTrue(catalogManager.listCatalogs().contains("cat2"));
