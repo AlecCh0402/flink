@@ -84,8 +84,7 @@ public class DescribeCatalogOperation implements Operation, ExecutableOperation 
                                         "type",
                                         properties.getOrDefault(
                                                 CommonCatalogOptions.CATALOG_TYPE.key(), "")),
-                                // TODO: Show the catalog comment until FLINK-34918 is resolved
-                                Arrays.asList("comment", "")));
+                                Arrays.asList("comment", catalogDescriptor.getComment())));
         if (isExtended) {
             properties.entrySet().stream()
                     .filter(

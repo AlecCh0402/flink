@@ -65,6 +65,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -327,11 +328,15 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *
      * @param catalogName the given catalog name under which to alter the given catalog
      * @param catalogUpdater catalog configuration updater to alter catalog
+     * @param catalogCommentUpdater catalog comment updater to alter catalog
      * @throws CatalogException If the catalog neither exists in the catalog store nor in the
      *     initialized catalogs, or if an error occurs while creating the catalog or storing the
      *     {@link CatalogDescriptor}
      */
-    public void alterCatalog(String catalogName, Consumer<Configuration> catalogUpdater)
+    public void alterCatalog(
+            String catalogName,
+            Consumer<Configuration> catalogUpdater,
+            Function<String, String> catalogCommentUpdater)
             throws CatalogException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(catalogName),
@@ -342,9 +347,13 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         Optional<CatalogDescriptor> oldCatalogDescriptor = getCatalogDescriptor(catalogName);
 
         if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
-            Configuration conf = oldCatalogDescriptor.get().getConfiguration();
+            CatalogDescriptor descriptor = oldCatalogDescriptor.get();
+            Configuration conf = descriptor.getConfiguration();
+            String comment = descriptor.getComment();
             catalogUpdater.accept(conf);
-            CatalogDescriptor newCatalogDescriptor = CatalogDescriptor.of(catalogName, conf);
+            comment = catalogCommentUpdater.apply(comment);
+            CatalogDescriptor newCatalogDescriptor =
+                    CatalogDescriptor.of(catalogName, conf, comment);
             Catalog newCatalog = initCatalog(catalogName, newCatalogDescriptor);
             catalogStore.removeCatalog(catalogName, false);
             if (catalogs.containsKey(catalogName)) {
@@ -357,6 +366,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             throw new CatalogException(
                     String.format("Catalog %s does not exist in the catalog store.", catalogName));
         }
+    }
+
+    public void alterCatalog(String catalogName, Consumer<Configuration> catalogUpdater) {
+        alterCatalog(catalogName, catalogUpdater, Function.identity());
     }
 
     private Catalog initCatalog(String catalogName, CatalogDescriptor catalogDescriptor) {

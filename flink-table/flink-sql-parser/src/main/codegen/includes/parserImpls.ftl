@@ -149,13 +149,13 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 
 /**
 * Parses an alter catalog statement.
-* ALTER CATALOG catalog_name SET (key1=val1, key2=val2, ...);
 */
 SqlAlterCatalog SqlAlterCatalog() :
 {
     SqlParserPos startPos;
     SqlIdentifier catalogName;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlCharStringLiteral comment = null;
 }
 {
     <ALTER> <CATALOG> { startPos = getPos(); }
@@ -175,6 +175,15 @@ SqlAlterCatalog SqlAlterCatalog() :
             return new SqlAlterCatalogReset(startPos.plus(getPos()),
                            catalogName,
                            propertyList);
+        }
+    |
+        <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+            return new SqlAlterCatalogComment(startPos.plus(getPos()),
+                           catalogName,
+                           comment);
         }
     )
 }

@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -367,14 +368,31 @@ class CatalogManagerTest {
         catalogManager.createCatalog("cat1", CatalogDescriptor.of("cat1", configuration));
         catalogManager.createCatalog("cat2", CatalogDescriptor.of("cat2", configuration));
         catalogManager.createCatalog("cat3", CatalogDescriptor.of("cat3", configuration));
+        catalogManager.createCatalog(
+                "cat_comment",
+                CatalogDescriptor.of("cat_comment", configuration.clone(), "comment for catalog"));
 
         assertTrue(catalogManager.getCatalog("cat1").isPresent());
         assertTrue(catalogManager.getCatalog("cat2").isPresent());
         assertTrue(catalogManager.getCatalog("cat3").isPresent());
+        assertTrue(catalogManager.getCatalog("cat_comment").isPresent());
+        assertTrue(catalogManager.getCatalogDescriptor("cat_comment").isPresent());
+        assertEquals(
+                "comment for catalog",
+                catalogManager.getCatalogDescriptor("cat_comment").get().getComment());
+
+        catalogManager.alterCatalog(
+                "cat_comment",
+                conf -> conf.setString("default-database", "db"),
+                comment -> "new " + comment);
+        CatalogDescriptor descriptor = catalogManager.getCatalogDescriptor("cat_comment").get();
+        assertEquals("db", descriptor.getConfiguration().getString("default-database", ""));
+        assertEquals("new comment for catalog", descriptor.getComment());
 
         assertTrue(catalogManager.listCatalogs().contains("cat1"));
         assertTrue(catalogManager.listCatalogs().contains("cat2"));
         assertTrue(catalogManager.listCatalogs().contains("cat3"));
+        assertTrue(catalogManager.listCatalogs().contains("cat_comment"));
 
         catalogManager.registerCatalog("cat4", new GenericInMemoryCatalog("cat4"));
 
@@ -419,7 +437,8 @@ class CatalogManagerTest {
                                         "cat3",
                                         "cat4",
                                         "default_catalog",
-                                        "exist_cat")));
+                                        "exist_cat",
+                                        "cat_comment")));
         catalogManager.setCurrentDatabase("cat_db");
         assertThat(catalogManager.listTables()).isEqualTo(Collections.singleton("test_table"));
 
